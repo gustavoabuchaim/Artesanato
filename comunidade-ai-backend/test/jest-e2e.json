@@ -1,0 +1,13 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "testRegex": ".e2e-spec.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "moduleNameMapper": {
+    ".*\\/generated\\/prisma\\/client$": "<rootDir>/mocks/generated-prisma-client.ts",
+    "^(\\.{1,2}/.*)\\.js$": "$1"
+  }
+}

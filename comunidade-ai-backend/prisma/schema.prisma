@@ -1,0 +1,1280 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TenantPlan {
+  FREE
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+enum UserStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+  DELETED
+}
+
+enum SessionStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+enum RoleScope {
+  SYSTEM
+  TENANT
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CANCELED
+  REFUNDED
+  FAILED
+}
+
+enum PaymentProvider {
+  STRIPE
+  MERCADOPAGO
+  HOTMART
+  ASAAS
+  MANUAL
+}
+
+enum PaymentStatus {
+  REQUIRES_ACTION
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELED
+  REFUNDED
+}
+
+enum ProductType {
+  MEMBERSHIP
+  COURSE
+  EBOOK
+  MENTORSHIP
+}
+
+enum PriceType {
+  ONE_TIME
+  RECURRING
+}
+
+enum BillingInterval {
+  MONTH
+  YEAR
+}
+
+enum PublicationStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CourseVisibility {
+  PRIVATE
+  UNLISTED
+  PUBLIC
+}
+
+enum LessonType {
+  VIDEO
+  TEXT
+  LIVE
+}
+
+enum EntitlementResourceType {
+  TENANT
+  COURSE
+  COMMUNITY_SPACE
+  EBOOK
+  MENTORSHIP_OFFER
+}
+
+enum EntitlementSourceType {
+  PURCHASE
+  ADMIN_GRANT
+  MIGRATION
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  READ
+}
+
+enum WebhookProvider {
+  STRIPE
+  MERCADOPAGO
+  HOTMART
+  PANDAVIDEO
+  RESEND
+  OTHER
+}
+
+enum WebhookEventStatus {
+  RECEIVED
+  PROCESSED
+  FAILED
+  IGNORED
+}
+
+enum OutboxStatus {
+  PENDING
+  DISPATCHED
+  FAILED
+}
+
+enum CommunityRole {
+  MEMBER
+  MODERATOR
+  ADMIN
+}
+
+enum PostStatus {
+  PUBLISHED
+  HIDDEN
+  ARCHIVED
+  DELETED
+  UNDER_REVIEW
+}
+
+enum ReactionKind {
+  LIKE
+  LOVE
+  CLAP
+  THANKS
+}
+
+enum UploadStatus {
+  INITIATED
+  UPLOADING
+  COMPLETED
+  CANCELED
+}
+
+enum FilePurpose {
+  AVATAR
+  COVER
+  EBOOK_FILE
+  EBOOK_COVER
+  LESSON_ATTACHMENT
+  COMMUNITY_ATTACHMENT
+  OTHER
+}
+
+model Tenant {
+  id        String     @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String
+  plan      TenantPlan @default(FREE)
+  isActive  Boolean    @default(true)
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  users            User[]
+  settings         TenantSetting[]
+  roles            Role[]
+  permissions      Permission[]
+  products         Product[]
+  prices           Price[]
+  orders           Order[]
+  entitlements     Entitlement[]
+  courses          Course[]
+  curationItems    CurationItem[]
+  carouselItems    CarouselItem[]
+  ebooks           Ebook[]
+  communitySpaces  CommunitySpace[]
+  notifications    Notification[]
+  outboxEvents     OutboxEvent[]
+  auditLogs        AuditLog[]
+  apiRequestLogs   ApiRequestLog[]
+  analyticsEvents  AnalyticsEvent[]
+  pageViews        PageView[]
+  uploads          UploadSession[]
+  files            FileObject[]
+  webhookEvents    WebhookEvent[]
+  mentorshipOffers MentorshipOffer[]
+  waitlist         WaitlistSubscriber[]
+  onboardingStates OnboardingState[]
+  userSessions     UserSession[]
+  passwordResetTokens PasswordResetToken[]
+  userRoles        UserRole[]
+  rolePermissions  RolePermission[]
+  orderItems       OrderItem[]
+  payments         Payment[]
+  courseModules    CourseModule[]
+  lessons          Lesson[]
+  lessonVideos     LessonVideo[]
+  lessonAttachments LessonAttachment[]
+  lessonProgresses LessonProgress[]
+  libraryItems     LibraryItem[]
+  ebookDownloads   EbookDownload[]
+  mentorshipEnrollments MentorshipEnrollment[]
+  mentorshipSessions    MentorshipSession[]
+  communityMembers CommunityMember[]
+  communityPosts   CommunityPost[]
+  communityComments CommunityComment[]
+  reactions        Reaction[]
+  communityReports CommunityReport[]
+
+  @@unique([slug])
+  @@index([isActive])
+}
+
+model TenantSetting {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+
+  key   String
+  value Json @db.JsonB
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+}
+
+model WaitlistSubscriber {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+
+  email String
+  name  String?
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, email])
+  @@index([tenantId, createdAt])
+}
+
+model User {
+  id       String     @id @default(uuid()) @db.Uuid
+  tenantId String     @db.Uuid
+  status   UserStatus @default(ACTIVE)
+
+  email String
+  name  String?
+  phone String?
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  profile    UserProfile?
+  credential UserCredential?
+  onboarding OnboardingState?
+  sessions   UserSession[]
+  roles      UserRole[]
+  orders     Order[]
+  entitlements Entitlement[]
+  notifications Notification[]
+  passwordResetTokens PasswordResetToken[]
+
+  auditLogsAsActor AuditLog[] @relation("AuditActor")
+  auditLogsAsTarget AuditLog[] @relation("AuditTarget")
+
+  communityMemberships CommunityMember[]
+  posts     CommunityPost[]
+  comments  CommunityComment[]
+  reactions Reaction[]
+  lessonProgress LessonProgress[]
+  uploadSessions UploadSession[]
+  communityReportsFiled CommunityReport[] @relation("CommunityReportReporter")
+  communityReportsResolved CommunityReport[] @relation("CommunityReportResolvedBy")
+
+  ebookLibrary   LibraryItem[]
+  ebookDownloads EbookDownload[]
+
+  mentorshipEnrollments MentorshipEnrollment[]
+  mentorshipSessions    MentorshipSession[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, status])
+}
+
+model OnboardingState {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  userId   String @unique @db.Uuid
+
+  completedAt DateTime? @db.Timestamptz
+  step        Int @default(0)
+  data        Json? @db.JsonB
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, step])
+}
+
+model UserProfile {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @unique @db.Uuid
+
+  avatarFileId String? @db.Uuid
+  bio          String?
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  avatar FileObject? @relation("UserAvatar", fields: [avatarFileId], references: [id], onDelete: SetNull)
+}
+
+model UserCredential {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @unique @db.Uuid
+
+  passwordHash String
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserSession {
+  id       String        @id @default(uuid()) @db.Uuid
+  tenantId String        @db.Uuid
+  userId   String        @db.Uuid
+  status   SessionStatus @default(ACTIVE)
+
+  refreshTokenHash String @unique
+  userAgent        String?
+  ip               String?
+
+  createdAt  DateTime @default(now()) @db.Timestamptz
+  lastUsedAt DateTime? @db.Timestamptz
+  expiresAt  DateTime @db.Timestamptz
+  revokedAt  DateTime? @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, status])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  userId   String @db.Uuid
+
+  tokenHash String @unique
+  expiresAt DateTime @db.Timestamptz
+  usedAt    DateTime? @db.Timestamptz
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId])
+  @@index([expiresAt])
+}
+
+model Role {
+  id       String    @id @default(uuid()) @db.Uuid
+  tenantId String    @db.Uuid
+  scope    RoleScope @default(TENANT)
+
+  key  String
+  name String
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  tenant      Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@unique([tenantId, key])
+  @@index([tenantId, scope])
+}
+
+model Permission {
+  id       String    @id @default(uuid()) @db.Uuid
+  tenantId String    @db.Uuid
+  scope    RoleScope @default(TENANT)
+
+  key  String
+  name String
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  roles  RolePermission[]
+
+  @@unique([tenantId, key])
+  @@index([tenantId, scope])
+}
+
+model UserRole {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  userId   String @db.Uuid
+  roleId   String @db.Uuid
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([tenantId, userId])
+  @@index([tenantId, roleId])
+}
+
+model RolePermission {
+  id           String @id @default(uuid()) @db.Uuid
+  tenantId     String @db.Uuid
+  roleId       String @db.Uuid
+  permissionId String @db.Uuid
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  role       Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([tenantId, roleId])
+  @@index([tenantId, permissionId])
+}
+
+model Product {
+  id       String      @id @default(uuid()) @db.Uuid
+  tenantId String      @db.Uuid
+  type     ProductType
+  name     String
+  status   PublicationStatus @default(DRAFT)
+
+  description String?
+  metadata    Json? @db.JsonB
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  tenant      Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  prices      Price[]
+  orderItems  OrderItem[]
+
+  @@index([tenantId, type])
+  @@index([tenantId, status])
+}
+
+model Price {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  productId String   @db.Uuid
+  type      PriceType
+
+  currency    String @default("BRL")
+  amountCents Int
+
+  interval      BillingInterval?
+  intervalCount Int?
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  tenant  Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@index([tenantId, productId])
+  @@index([tenantId, isActive])
+}
+
+model Order {
+  id       String      @id @default(uuid()) @db.Uuid
+  tenantId String      @db.Uuid
+  userId   String      @db.Uuid
+
+  status     OrderStatus @default(PENDING)
+  currency   String      @default("BRL")
+  totalCents Int
+
+  providerCheckoutRef String? @unique
+  metadata            Json? @db.JsonB
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user     User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items    OrderItem[]
+  payments Payment[]
+
+  @@index([tenantId, userId, createdAt])
+  @@index([tenantId, status, createdAt])
+}
+
+model OrderItem {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  orderId  String @db.Uuid
+
+  productId String @db.Uuid
+  priceId   String? @db.Uuid
+
+  quantity        Int @default(1)
+  unitAmountCents Int
+  currency        String @default("BRL")
+
+  snapshot Json? @db.JsonB
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  tenant  Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  order   Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  price   Price? @relation(fields: [priceId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, orderId])
+  @@index([tenantId, productId])
+}
+
+model Payment {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  orderId  String @db.Uuid
+
+  provider PaymentProvider
+  status   PaymentStatus @default(PROCESSING)
+
+  providerPaymentRef String? @unique
+  providerEventRef   String?
+
+  amountCents Int
+  currency    String @default("BRL")
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  order  Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, orderId])
+  @@index([tenantId, provider, status])
+}
+
+model Entitlement {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  userId   String @db.Uuid
+
+  resourceType EntitlementResourceType
+  resourceId   String @db.Uuid
+
+  sourceType EntitlementSourceType
+  sourceRef  String?
+
+  grantedAt DateTime @default(now()) @db.Timestamptz
+  expiresAt DateTime? @db.Timestamptz
+  revokedAt DateTime? @db.Timestamptz
+
+  metadata Json? @db.JsonB
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, resourceType, resourceId])
+  @@index([tenantId, userId])
+  @@index([tenantId, resourceType, resourceId])
+  @@index([expiresAt])
+}
+
+model Course {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+
+  title       String
+  description String?
+  status      PublicationStatus @default(DRAFT)
+  visibility  CourseVisibility @default(PRIVATE)
+
+  coverFileId String? @db.Uuid
+
+  publishedAt DateTime? @db.Timestamptz
+  createdAt   DateTime @default(now()) @db.Timestamptz
+  updatedAt   DateTime @updatedAt @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cover  FileObject? @relation("CourseCover", fields: [coverFileId], references: [id], onDelete: SetNull)
+
+  modules  CourseModule[]
+  progress LessonProgress[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, visibility])
+  @@index([publishedAt])
+}
+
+model CourseModule {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  courseId String @db.Uuid
+
+  title     String
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+
+  @@index([tenantId, courseId, sortOrder])
+}
+
+model Lesson {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  moduleId String @db.Uuid
+
+  title       String
+  description String?
+  type        LessonType @default(VIDEO)
+  status      PublicationStatus @default(DRAFT)
+
+  sortOrder   Int @default(0)
+  publishedAt DateTime? @db.Timestamptz
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  module CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  video       LessonVideo?
+  attachments LessonAttachment[]
+  progress    LessonProgress[]
+
+  @@index([tenantId, moduleId, sortOrder])
+  @@index([tenantId, status])
+}
+
+model LessonVideo {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  lessonId String @unique @db.Uuid
+
+  pandaVideoId String @unique
+  durationSec  Int?
+  metadata     Json? @db.JsonB
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, lessonId])
+}
+
+model LessonAttachment {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  lessonId String @db.Uuid
+  fileId   String @db.Uuid
+
+  title     String?
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  file   FileObject @relation("LessonAttachmentFile", fields: [fileId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, lessonId])
+  @@unique([lessonId, fileId])
+}
+
+model LessonProgress {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  userId   String @db.Uuid
+  courseId String @db.Uuid
+  lessonId String @db.Uuid
+
+  progressPercent Int @default(0)
+  lastPositionSec Int @default(0)
+  completedAt     DateTime? @db.Timestamptz
+  updatedAt       DateTime @updatedAt @db.Timestamptz
+  createdAt       DateTime @default(now()) @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([tenantId, userId, updatedAt])
+  @@index([tenantId, courseId])
+}
+
+model CurationItem {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+
+  title       String
+  description String?
+  url         String
+  tag         String?
+  status      PublicationStatus @default(PUBLISHED)
+
+  publishedAt DateTime? @db.Timestamptz
+  createdAt   DateTime @default(now()) @db.Timestamptz
+  updatedAt   DateTime @updatedAt @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([tenantId, publishedAt])
+}
+
+model CarouselItem {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+
+  title    String
+  subtitle String?
+  ctaLabel String?
+  ctaUrl   String?
+
+  imageFileId       String? @db.Uuid
+  mobileImageFileId String? @db.Uuid
+
+  backgroundColor String?
+
+  status    PublicationStatus @default(DRAFT)
+  sortOrder Int @default(0)
+
+  publishedAt DateTime? @db.Timestamptz
+  createdAt   DateTime @default(now()) @db.Timestamptz
+  updatedAt   DateTime @updatedAt @db.Timestamptz
+
+  tenant      Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  image       FileObject? @relation("CarouselImage", fields: [imageFileId], references: [id], onDelete: SetNull)
+  mobileImage FileObject? @relation("CarouselMobileImage", fields: [mobileImageFileId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status, sortOrder])
+  @@index([tenantId, publishedAt])
+}
+
+model Ebook {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+
+  title       String
+  description String?
+  status      PublicationStatus @default(DRAFT)
+
+  coverFileId String? @db.Uuid
+  fileId      String? @db.Uuid
+
+  publishedAt DateTime? @db.Timestamptz
+  createdAt   DateTime @default(now()) @db.Timestamptz
+  updatedAt   DateTime @updatedAt @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cover  FileObject? @relation("EbookCover", fields: [coverFileId], references: [id], onDelete: SetNull)
+  file   FileObject? @relation("EbookFile", fields: [fileId], references: [id], onDelete: SetNull)
+
+  libraryItems LibraryItem[]
+  downloads    EbookDownload[]
+
+  @@index([tenantId, status])
+  @@index([publishedAt])
+}
+
+model LibraryItem {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  userId   String @db.Uuid
+  ebookId  String @db.Uuid
+
+  grantedAt DateTime @default(now()) @db.Timestamptz
+  revokedAt DateTime? @db.Timestamptz
+
+  sourceType EntitlementSourceType
+  sourceRef  String?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ebook  Ebook @relation(fields: [ebookId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, ebookId])
+  @@index([tenantId, userId])
+  @@index([tenantId, ebookId])
+}
+
+model EbookDownload {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  userId   String @db.Uuid
+  ebookId  String @db.Uuid
+
+  ip        String?
+  userAgent String?
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ebook  Ebook @relation(fields: [ebookId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, ebookId, createdAt])
+  @@index([tenantId, userId, createdAt])
+}
+
+model MentorshipOffer {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+
+  name        String
+  description String?
+  status      PublicationStatus @default(DRAFT)
+
+  metadata Json? @db.JsonB
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  tenant      Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  enrollments MentorshipEnrollment[]
+
+  @@index([tenantId, status])
+}
+
+model MentorshipEnrollment {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  userId   String @db.Uuid
+  offerId  String @db.Uuid
+
+  unlockedAt DateTime? @db.Timestamptz
+  revokedAt  DateTime? @db.Timestamptz
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  offer  MentorshipOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  sessions MentorshipSession[]
+
+  @@unique([userId, offerId])
+  @@index([tenantId, userId])
+}
+
+model MentorshipSession {
+  id           String @id @default(uuid()) @db.Uuid
+  tenantId     String @db.Uuid
+  enrollmentId String @db.Uuid
+  userId       String @db.Uuid
+
+  scheduledAt DateTime? @db.Timestamptz
+  startedAt   DateTime? @db.Timestamptz
+  endedAt     DateTime? @db.Timestamptz
+
+  meetingUrl String?
+  notes      String?
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  enrollment MentorshipEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, scheduledAt])
+  @@index([tenantId, userId, createdAt])
+}
+
+model CommunitySpace {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+
+  name        String
+  description String?
+  status      PublicationStatus @default(PUBLISHED)
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  tenant  Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  members CommunityMember[]
+  posts   CommunityPost[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId, status])
+}
+
+model CommunityMember {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  spaceId  String @db.Uuid
+  userId   String @db.Uuid
+  role     CommunityRole @default(MEMBER)
+
+  joinedAt DateTime @default(now()) @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  space  CommunitySpace @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId, userId])
+  @@index([tenantId, spaceId])
+  @@index([tenantId, userId])
+}
+
+model CommunityPost {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  spaceId  String @db.Uuid
+  authorId String @db.Uuid
+
+  title  String
+  body   String
+  status PostStatus @default(PUBLISHED)
+
+  attachmentFileId String? @db.Uuid
+
+  pinnedAt DateTime? @db.Timestamptz
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  space  CommunitySpace @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  attachment FileObject? @relation("CommunityPostAttachment", fields: [attachmentFileId], references: [id], onDelete: SetNull)
+
+  comments  CommunityComment[]
+  reactions Reaction[]
+  reports   CommunityReport[]
+
+  @@index([tenantId, spaceId, createdAt])
+  @@index([tenantId, authorId, createdAt])
+  @@index([tenantId, status, createdAt])
+}
+
+model CommunityComment {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  postId   String @db.Uuid
+  authorId String @db.Uuid
+
+  body   String
+  status PostStatus @default(PUBLISHED)
+
+  parentCommentId String? @db.Uuid
+  attachmentFileId String? @db.Uuid
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  post   CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parentComment CommunityComment? @relation("CommunityCommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies CommunityComment[] @relation("CommunityCommentReplies")
+  attachment FileObject? @relation("CommunityCommentAttachment", fields: [attachmentFileId], references: [id], onDelete: SetNull)
+
+  reactions Reaction[]
+  reports   CommunityReport[]
+
+  @@index([tenantId, postId, createdAt])
+  @@index([tenantId, authorId, createdAt])
+  @@index([tenantId, parentCommentId, createdAt])
+}
+
+model Reaction {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  userId   String @db.Uuid
+  kind     ReactionKind
+
+  postId    String? @db.Uuid
+  commentId String? @db.Uuid
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  tenant  Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user    User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post    CommunityPost? @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment CommunityComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, createdAt])
+  @@index([tenantId, postId])
+  @@index([tenantId, commentId])
+}
+
+model CommunityReport {
+  id         String @id @default(uuid()) @db.Uuid
+  tenantId   String @db.Uuid
+  reporterId String @db.Uuid
+  postId     String? @db.Uuid
+  commentId  String? @db.Uuid
+
+  reason  String
+  details String?
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  resolvedAt DateTime? @db.Timestamptz
+  resolvedByUserId String? @db.Uuid
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  reporter User @relation("CommunityReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  post     CommunityPost? @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment  CommunityComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  resolvedBy User? @relation("CommunityReportResolvedBy", fields: [resolvedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, resolvedAt])
+}
+
+model FileObject {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+
+  purpose  FilePurpose @default(OTHER)
+  r2Key    String @unique
+  mimeType String?
+  sizeBytes BigInt?
+
+  checksum String?
+  metadata Json? @db.JsonB
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  tenant  Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userAvatars UserProfile[] @relation("UserAvatar")
+  courseCovers Course[] @relation("CourseCover")
+  ebookCovers Ebook[] @relation("EbookCover")
+  ebookFiles  Ebook[] @relation("EbookFile")
+  carouselImages CarouselItem[] @relation("CarouselImage")
+  carouselMobileImages CarouselItem[] @relation("CarouselMobileImage")
+  communityPostAttachments CommunityPost[] @relation("CommunityPostAttachment")
+  communityCommentAttachments CommunityComment[] @relation("CommunityCommentAttachment")
+  lessonAttachmentFiles LessonAttachment[] @relation("LessonAttachmentFile")
+  uploadSessionFiles UploadSession[] @relation("UploadSessionFile")
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, purpose])
+}
+
+model UploadSession {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  userId   String? @db.Uuid
+
+  status UploadStatus @default(INITIATED)
+
+  fileId      String? @db.Uuid
+  filePurpose FilePurpose @default(OTHER)
+
+  originalFilename String?
+  expectedSizeBytes BigInt?
+
+  createdAt   DateTime @default(now()) @db.Timestamptz
+  completedAt DateTime? @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  file   FileObject? @relation("UploadSessionFile", fields: [fileId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status, createdAt])
+  @@index([tenantId, userId, createdAt])
+}
+
+model Notification {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+  userId   String @db.Uuid
+
+  channel NotificationChannel @default(IN_APP)
+  status  NotificationStatus @default(PENDING)
+
+  type    String
+  title   String?
+  body    String?
+  payload Json? @db.JsonB
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+  sentAt    DateTime? @db.Timestamptz
+  readAt    DateTime? @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, createdAt])
+  @@index([tenantId, status, createdAt])
+}
+
+model WebhookEvent {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+
+  provider WebhookProvider
+  eventId  String
+  status   WebhookEventStatus @default(RECEIVED)
+
+  payload     Json @db.JsonB
+  payloadHash String
+
+  receivedAt DateTime @default(now()) @db.Timestamptz
+  processedAt DateTime? @db.Timestamptz
+  error      String?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, eventId])
+  @@index([tenantId, provider, status, receivedAt])
+  @@index([payloadHash])
+}
+
+model OutboxEvent {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+
+  topic  String
+  status OutboxStatus @default(PENDING)
+
+  payload   Json @db.JsonB
+  dedupeKey String?
+
+  createdAt    DateTime @default(now()) @db.Timestamptz
+  dispatchedAt DateTime? @db.Timestamptz
+  attempts     Int @default(0)
+  lastError    String?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status, createdAt])
+  @@index([topic, createdAt])
+  @@index([dedupeKey])
+}
+
+model AuditLog {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+
+  actorUserId  String? @db.Uuid
+  targetUserId String? @db.Uuid
+
+  action     String
+  targetType String?
+  targetId   String?
+  metadata   Json? @db.JsonB
+
+  ip        String?
+  userAgent String?
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor  User? @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  target User? @relation("AuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, action, createdAt])
+  @@index([tenantId, actorUserId, createdAt])
+}
+
+model ApiRequestLog {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+
+  requestId String?
+  userId    String? @db.Uuid
+
+  method     String
+  path       String
+  statusCode Int
+  latencyMs  Int
+
+  ip        String?
+  userAgent String?
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, path, createdAt])
+  @@index([tenantId, statusCode, createdAt])
+}
+
+model AnalyticsEvent {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+
+  userId    String? @db.Uuid
+  sessionId String?
+
+  name       String
+  properties Json? @db.JsonB
+
+  referrer  String?
+  userAgent String?
+  ip        String?
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, name, createdAt])
+  @@index([tenantId, userId, createdAt])
+}
+
+model PageView {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @db.Uuid
+
+  userId    String? @db.Uuid
+  sessionId String?
+
+  path     String
+  title    String?
+  referrer String?
+
+  userAgent String?
+  ip        String?
+
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, path, createdAt])
+  @@index([tenantId, userId, createdAt])
+}

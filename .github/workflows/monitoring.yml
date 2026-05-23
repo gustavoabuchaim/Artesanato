@@ -1,0 +1,20 @@
+name: Health Monitoring
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/10 * * * *"
+
+jobs:
+  healthcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check backend
+        if: ${{ secrets.BACKEND_HEALTHCHECK_URL != '' }}
+        run: |
+          curl -fsS "${{ secrets.BACKEND_HEALTHCHECK_URL }}"
+      - name: Check frontend
+        if: ${{ secrets.FRONTEND_HEALTHCHECK_URL != '' }}
+        run: |
+          curl -fsS "${{ secrets.FRONTEND_HEALTHCHECK_URL }}"
+
