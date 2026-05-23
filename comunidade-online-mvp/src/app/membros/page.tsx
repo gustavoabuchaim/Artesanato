@@ -32,7 +32,8 @@ const quote = {
 } as const;
 
 export default async function DashboardPage() {
-  const [user, dashboard] = await Promise.all([usersServerService.requireMe(), dashboardService.get()]);
+  const user = await usersServerService.requireMe();
+  const dashboard = await dashboardService.get();
   const continueWatching = dashboard?.continueWatching ?? [];
 
   return (
