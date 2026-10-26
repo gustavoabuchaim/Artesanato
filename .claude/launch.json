@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "automacao-videos",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "automacao-videos", "run", "dev", "--", "-p", "3010"],
+      "port": 3010
+    }
+  ]
+}
