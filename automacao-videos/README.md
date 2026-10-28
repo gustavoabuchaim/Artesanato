@@ -37,37 +37,25 @@ npm run dev                  # http://localhost:3000
 - `npm test` roda os testes da linha do tempo das cenas e da semana ISO.
 - `npm run studio` abre o Remotion Studio com um vídeo de exemplo, para ajustar o visual das cenas.
 
-## Hospedar na VPS (Hostinger, Ubuntu 24.04)
+## Produção (VPS com Docker e Caddy)
 
-O KVM 2 (2 vCPU, 8 GB) dá conta: a transcrição leva cerca de 1 minuto e o render de 1 minuto de vídeo leva alguns minutos.
+Roda em https://artesanato.dalefatto.com, na VPS `187.127.21.16`, ao lado dos outros apps:
+
+- **Código:** fica em `/opt/artesanato`. O `compose.production.yaml` sobe o container `artesanato-web` na rede `docker_default`, a mesma do Caddy.
+- **Segredos:** ficam só em `/opt/artesanato/.env.production` (permissão 600), com as mesmas chaves do `.env.example`.
+- **Dados:** `data/` e o whisper ficam nos volumes `artesanato_data` e `artesanato_whisper`. O whisper é compilado e baixado na primeira vez que o container sobe, o que leva alguns minutos.
+- **Caddy:** o bloco do site é `deploy/artesanato.caddy`, copiado para `/opt/caddy-sites/`.
+
+Para publicar uma nova versão, a partir desta pasta:
 
 ```bash
-# Node 24 e ferramentas para compilar o whisper.cpp
-curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
-sudo apt install -y nodejs git build-essential nginx
-# Dependências do Chrome que o Remotion usa para renderizar
-sudo apt install -y libnss3 libdbus-1-3 libatk1.0-0 libasound2t64 libxrandr2 libxkbcommon-dev \
-  libxfixes3 libxcomposite1 libxdamage1 libgbm-dev libcups2 libcairo2 libpango-1.0-0 libatk-bridge2.0-0
-
-git clone <repo> && cd automacao-videos
-npm ci
-cp .env.example .env.local && nano .env.local
-npm run build
-sudo npm install -g pm2
-pm2 start npm --name estudio -- start
-pm2 save && pm2 startup
+tar --exclude=./node_modules --exclude=./.next --exclude=./data --exclude=./.whisper --exclude='./.env*' -czf - . | ssh root@187.127.21.16 'tar -xzf - -C /opt/artesanato'
+ssh root@187.127.21.16 'cd /opt/artesanato && docker compose -f compose.production.yaml up -d --build'
 ```
 
-No nginx, aponte o domínio para `http://127.0.0.1:3000` e gere o HTTPS com o certbot. Configure também:
+A VPS tem 1 vCPU: o container fica limitado a 1,5 GB de RAM, e o render de 1 minuto de vídeo leva alguns minutos.
 
-```nginx
-client_max_body_size 60m;      # áudio de até 50 MB
-proxy_read_timeout 300s;
-proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-proxy_set_header X-Forwarded-Proto $scheme;
-```
-
-Faça backup da pasta `data/`: ela guarda todo o histórico.
+Faça backup do volume `artesanato_data`: ele guarda todo o histórico.
 
 ## Custos e licenças
 

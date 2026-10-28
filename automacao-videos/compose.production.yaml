@@ -1,0 +1,31 @@
+name: artesanato
+services:
+  # O nome do serviço vira nome DNS na rede compartilhada: "web" colidia com o stokei (reverse_proxy web:3000).
+  artesanato-web:
+    build: .
+    image: artesanato-videos:local
+    restart: unless-stopped
+    init: true
+    # Segredos só no servidor (ANTHROPIC_API_KEY, APP_PASSWORD, SESSION_SECRET, PEXELS_API_KEY).
+    env_file: .env.production
+    volumes:
+      - data:/app/data
+      - whisper:/app/.whisper
+    networks: [edge]
+    # A VPS é dividida com outros apps: o render (Chrome) e o whisper ficam presos a este teto.
+    mem_limit: 1536m
+    cpus: 1.0
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+networks:
+  edge:
+    external: true
+    name: docker_default
+
+volumes:
+  data:
+  whisper:

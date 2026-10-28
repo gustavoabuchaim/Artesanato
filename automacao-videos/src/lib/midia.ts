@@ -1,4 +1,6 @@
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import { rm } from "node:fs/promises";
 import path from "node:path";
 import { downloadWhisperModel, installWhisperCpp, transcribe } from "@remotion/install-whisper-cpp";
 import { agruparFrases } from "./cenas";
@@ -45,22 +47,39 @@ export async function duracaoAudio(arquivo: string) {
 }
 
 const PASTA_WHISPER = path.join(process.cwd(), ".whisper");
+// O instalador clona/extrai numa pasta que ainda não pode existir; .whisper é volume no Docker e já existe.
+const PASTA_CPP = path.join(PASTA_WHISPER, "cpp");
 // 1.5.5: última versão com binário pronto para Windows; no Linux o Remotion compila do código-fonte.
 const VERSAO_WHISPER = "1.5.5";
 // shortcut: modelo "small" (rápido em CPU de VPS); trocar por "medium" se a transcrição errar muito.
 const MODELO_WHISPER = "small";
 
-/** Instala o whisper.cpp e baixa o modelo na primeira vez (cerca de 500 MB). */
-export async function prepararWhisper() {
-  await installWhisperCpp({ to: PASTA_WHISPER, version: VERSAO_WHISPER, printOutput: false });
-  await downloadWhisperModel({ model: MODELO_WHISPER, folder: PASTA_WHISPER, printOutput: false });
+const g = globalThis as typeof globalThis & { __preparoWhisper?: Promise<void> };
+
+/**
+ * Instala o whisper.cpp e baixa o modelo na primeira vez (cerca de 500 MB). Uma só execução por
+ * processo: a preparação ao subir o servidor e uma transcrição não instalam por cima uma da outra.
+ */
+export function prepararWhisper() {
+  g.__preparoWhisper ??= (async () => {
+    // Pasta sem o executável (instalação interrompida): o instalador pularia em silêncio.
+    if (!existsSync(path.join(PASTA_CPP, process.platform === "win32" ? "main.exe" : "main"))) {
+      await rm(PASTA_CPP, { recursive: true, force: true });
+    }
+    await installWhisperCpp({ to: PASTA_CPP, version: VERSAO_WHISPER, printOutput: false });
+    await downloadWhisperModel({ model: MODELO_WHISPER, folder: PASTA_WHISPER, printOutput: false });
+  })().catch((erro) => {
+    g.__preparoWhisper = undefined; // permite tentar de novo na próxima transcrição
+    throw erro;
+  });
+  return g.__preparoWhisper;
 }
 
 export async function transcrever(wav: string, aoProgredir: (fracao: number) => void): Promise<Segmento[]> {
   await prepararWhisper();
   const { transcription } = await transcribe({
     inputPath: wav,
-    whisperPath: PASTA_WHISPER,
+    whisperPath: PASTA_CPP,
     whisperCppVersion: VERSAO_WHISPER,
     model: MODELO_WHISPER,
     modelFolder: PASTA_WHISPER,

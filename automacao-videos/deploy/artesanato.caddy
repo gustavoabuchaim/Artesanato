@@ -1,0 +1,17 @@
+# Bloco do artesanato.dalefatto.com para o Caddy da VPS. Vai em /opt/caddy-sites/,
+# que o Caddyfile principal importa (import /etc/caddy/sites/*.caddy).
+artesanato.dalefatto.com {
+	encode zstd gzip
+	# Áudio de até 50 MB no upload, com folga.
+	request_body {
+		max_size 60MB
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+	reverse_proxy artesanato-web:3000
+}
