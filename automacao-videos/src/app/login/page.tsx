@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -27,27 +28,42 @@ export default function Login() {
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center p-6">
-      <form onSubmit={entrar} className="w-full max-w-sm space-y-4 rounded-2xl border border-borda bg-painel p-8">
-        <div>
-          <p className="text-xs font-semibold tracking-widest text-teal-300">ESTÚDIO DE NOTÍCIAS</p>
-          <h1 className="mt-1 text-2xl font-bold">Artesanato em 1 minuto</h1>
-        </div>
+    // Fundo escuro oficial da marca, com a versão branca do logo; o foco usa a cor do tema escuro.
+    <main className="relative flex flex-1 items-center overflow-hidden bg-acao p-6 text-on-acao [--color-foco:#ffa638] sm:px-16">
+      <Image
+        src="/marca/simbolo-coral.png"
+        alt=""
+        width={692}
+        height={848}
+        unoptimized
+        className="pointer-events-none absolute -bottom-24 -right-24 w-80 max-w-none sm:w-[34rem]"
+      />
+      <form onSubmit={entrar} className="relative w-full max-w-sm space-y-6">
+        <Image
+          src="/marca/logo-coral-branca.png"
+          alt="Fernanda Sklovsky, Artesanato Inteligente"
+          width={1484}
+          height={384}
+          unoptimized
+          priority
+          className="h-auto w-72"
+        />
+        <h1 className="text-4xl font-extrabold leading-none tracking-tight">Artesanato em 1 minuto</h1>
         <label className="block space-y-2">
-          <span className="text-sm text-suave">Senha</span>
+          <span className="text-xs font-semibold uppercase tracking-[0.06em]">Senha</span>
           <input
             type="password"
             autoFocus
             required
             value={senha}
             onChange={(e) => setSenha(e.target.value)}
-            className="w-full rounded-lg border border-borda bg-fundo px-3 py-2 outline-none focus:border-teal-300"
+            className="w-full rounded-sm bg-white px-3 py-2 text-ink"
           />
         </label>
-        {erro && <p className="text-sm text-rose-300">{erro}</p>}
+        {erro && <p className="text-sm text-amarelo">{erro}</p>}
         <button
           disabled={enviando}
-          className="w-full rounded-lg bg-teal-400 px-4 py-2 font-semibold text-slate-950 hover:bg-teal-300 disabled:opacity-60"
+          className="w-full rounded-sm bg-menta px-4 py-2 font-bold text-verde-noite hover:bg-white disabled:opacity-60"
         >
           {enviando ? "Entrando…" : "Entrar"}
         </button>

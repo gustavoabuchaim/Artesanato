@@ -1,7 +1,7 @@
-import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { atualizarEstado, executarTarefa, lerEstado, pastaSemana, tarefaRodando, type Progresso } from "./armazenamento";
-import { normalizarCenas } from "./cenas";
+import { logoDaSemana, normalizarCenas } from "./cenas";
 import { buscarNoticias, gerarCenas, gerarRoteiro } from "./claude";
 import { fotoDaNoticia, fotoDoBanco, type ImagemSalva } from "./imagens";
 import { converterAudio, duracaoAudio, renderizarVideo, transcrever } from "./midia";
@@ -60,6 +60,8 @@ async function montarCenas(estado: Estado, progresso: Progresso) {
 
   await progresso(0.55, "Buscando a foto da notícia");
   const fotoNoticia = await fotoDaNoticia(noticia.link, noticia.fonte, pasta).catch(() => null);
+  // Alguns sites recusam acesso automático; o app respeita, e a foto pode ser trocada na tela.
+  if (!fotoNoticia) console.warn(`[foto] sem foto da matéria: ${noticia.link}`);
   // Imagens acima de ~5 MB não são aceitas pela API; nesse caso o Claude só não vê a foto.
   const dadosFoto = fotoNoticia ? await readFile(path.join(pasta, fotoNoticia.arquivo)) : null;
   const anexo = fotoNoticia && dadosFoto && dadosFoto.length < 4_500_000 ? { base64: dadosFoto.toString("base64"), tipo: fotoNoticia.tipo } : null;
@@ -151,7 +153,9 @@ export async function exportarVideo() {
   if (!estado.audio || !estado.cenas.length) throw new Error("Não há vídeo para exportar ainda.");
   return executarTarefa("Renderizando o vídeo", async (progresso) => {
     const pasta = pastaSemana();
-    const props: VideoProps = { cenas: estado.cenas, duracao: estado.duracao, audio: estado.audio!, base: "" };
+    const props: VideoProps = { cenas: estado.cenas, duracao: estado.duracao, audio: estado.audio!, logo: logoDaSemana(estado.semana), base: "" };
+    // O render só enxerga esta pasta (--public-dir), então os logos e símbolos vêm junto.
+    await cp(path.join(process.cwd(), "public", "marca"), path.join(pastaArquivos(), "marca"), { recursive: true });
     const arquivoProps = path.join(pasta, "props.json");
     await writeFile(arquivoProps, JSON.stringify(props));
     const nome = `video-${Date.now()}.mp4`;

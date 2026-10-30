@@ -1,4 +1,4 @@
-import type { Segmento } from "./tipos";
+import type { Cena, Logo, Segmento } from "./tipos";
 
 const MINIMO_S = 0.5;
 const FRASE_MAXIMA_S = 8;
@@ -56,4 +56,39 @@ export function normalizarCenas<T extends { inicio: number }>(cenas: T[], duraca
   if (mantidas.length > 1 && duracao - mantidas.at(-1)!.inicio < MINIMO_S) mantidas.pop();
 
   return mantidas.map((c, i) => ({ ...c, fim: i < mantidas.length - 1 ? mantidas[i + 1].inicio : duracao }));
+}
+
+const LOGOS: Logo[] = ["coral", "laranja", "amarelo", "rosa", "verde"];
+
+/** O design system pede uma versão do logo por peça e variação entre peças: troca a cada semana. */
+export function logoDaSemana(semana: string): Logo {
+  return LOGOS[(Number(semana.slice(-2)) || 0) % LOGOS.length];
+}
+
+/** Pássaro (rosa) e vaso (menta) somem em fundo claro; nesses casos entra a folha coral. */
+export function simboloParaFundo(simbolo: Cena["simbolo"], fundo: Cena["fundo"]): Cena["simbolo"] {
+  const claro = fundo === "creme" || fundo === "rosa-papel" || fundo === "branco";
+  return claro && (simbolo === "passaro" || simbolo === "vaso") ? "folha-coral" : simbolo;
+}
+
+/** Separa o título em palavras e marca as que fazem parte da ênfase; ênfase que não está no título é ignorada. */
+export function palavrasComEnfase(titulo: string, enfase: string | undefined) {
+  const alvo = enfase?.trim().toLowerCase() ?? "";
+  const de = alvo ? titulo.toLowerCase().indexOf(alvo) : -1;
+  const ate = de + alvo.length;
+  let posicao = 0;
+  return titulo.split(/\s+/).filter(Boolean).map((palavra) => {
+    const inicio = titulo.indexOf(palavra, posicao);
+    posicao = inicio + palavra.length;
+    return { palavra, enfase: de >= 0 && inicio < ate && posicao > de };
+  });
+}
+
+/** Número durante a contagem: "R$ 1.300" em 50% vira "R$ 650". Só inteiros contam; o resto fica como está. */
+export function contagem(valor: string, fracao: number) {
+  const partes = valor.match(/^(\D*)(\d{1,3}(?:\.\d{3})+|\d+)(?![\d,])(.*)$/);
+  if (!partes) return valor;
+  const [, antes, numero, depois] = partes;
+  const atual = Math.round(Number(numero.replace(/\./g, "")) * Math.min(Math.max(fracao, 0), 1));
+  return `${antes}${numero.includes(".") ? atual.toLocaleString("pt-BR") : atual}${depois}`;
 }

@@ -1,14 +1,30 @@
 @import "tailwindcss";
 
+/* Tokens do design system Fernanda Sklovsky (tema claro). */
 @theme inline {
-  --color-fundo: #0a0f1e;
-  --color-painel: #111a2e;
-  --color-borda: #26314d;
-  --color-suave: #8b95ad;
-  --font-sans: var(--font-inter);
+  --color-surface: #ffffff;
+  --color-surface-alt: #f2e5db;
+  --color-ink: #231f20;
+  --color-ink-muted: #68663c;
+  --color-acao: #092839;
+  --color-on-acao: #ffffff;
+  --color-link: #2b4594;
+  --color-foco: #2b4594;
+  --color-verde-noite: #122726;
+  --color-creme: #e2dbc8;
+  --color-menta: #acd8b7;
+  --color-rosa: #e4b3a2;
+  --color-amarelo: #ffa638;
+  --font-sans: var(--font-archivo);
+  --font-serif: var(--font-bodoni);
 }
 
 body {
-  background: var(--color-fundo);
-  color: #e8ecf4;
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-foco);
+  outline-offset: 2px;
 }

@@ -1,31 +1,62 @@
-import { loadFont } from "@remotion/google-fonts/Inter";
+import { loadFont as carregarArchivo } from "@remotion/google-fonts/Archivo";
+import { loadFont as carregarBodoni } from "@remotion/google-fonts/LibreBodoni";
 import type { CSSProperties, ReactNode } from "react";
 import {
   AbsoluteFill,
   Audio,
+  Easing,
   Img,
   Sequence,
   interpolate,
-  random,
   spring,
   staticFile,
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
-import type { Cena, VideoProps } from "../lib/tipos";
+import { contagem, palavrasComEnfase, simboloParaFundo } from "../lib/cenas";
+import type { Cena, Logo, VideoProps } from "../lib/tipos";
 
-const { fontFamily } = loadFont("normal", { weights: ["400", "600", "700", "800"], subsets: ["latin", "latin-ext"] });
+// Identidade: design system "Fernanda Sklovsky" (tokens e regras copiados de project/tokens.json e
+// README.md; imagens em public/marca). Fundos chapados, blocos retos, sem sombra, gradiente ou borda.
+const { fontFamily: ARCHIVO } = carregarArchivo("normal", { weights: ["400", "600", "700", "800"], subsets: ["latin", "latin-ext"] });
+const { fontFamily: BODONI } = carregarBodoni("italic", { weights: ["400"], subsets: ["latin", "latin-ext"] });
 
 export const FPS = 30;
 export const LARGURA = 1080;
 export const ALTURA = 1920;
 
-const COR = { fundo: "#0a0f1e", painel: "#111a2e", borda: "#26314d", texto: "#e8ecf4", suave: "#8b95ad" };
-const DESTAQUES = ["#2dd4bf", "#fb923c", "#f472b6", "#facc15", "#a78bfa", "#60a5fa"];
-const MARGEM = 80;
+const TINTA = "#231f20";
+const FUNDOS: Record<Cena["fundo"], { cor: string; escuro: boolean }> = {
+  "azul-noite": { cor: "#092839", escuro: true },
+  "verde-noite": { cor: "#122726", escuro: true },
+  creme: { cor: "#e2dbc8", escuro: false },
+  "rosa-papel": { cor: "#f2e5db", escuro: false },
+  branco: { cor: "#ffffff", escuro: false },
+};
+// Todos aceitam texto em tinta por cima; o coral (4:1) só recebe texto grande e em negrito.
+const ACENTOS: Record<Cena["acento"], string> = {
+  coral: "#d45933",
+  "amarelo-sol": "#ffa638",
+  laranja: "#ff5e1f",
+  rosa: "#e4b3a2",
+  menta: "#acd8b7",
+  "verde-agua": "#69b099",
+  areia: "#b19367",
+};
+const ORDEM_ACENTOS = Object.keys(ACENTOS) as Cena["acento"][];
+const SIMBOLOS: Record<Exclude<Cena["simbolo"], "nenhum">, { arquivo: string; acento: Cena["acento"] }> = {
+  "folha-coral": { arquivo: "simbolo-coral.png", acento: "coral" },
+  "folha-laranja": { arquivo: "simbolo-laranja.png", acento: "amarelo-sol" },
+  sol: { arquivo: "simbolo-sol.png", acento: "amarelo-sol" },
+  passaro: { arquivo: "simbolo-rosa.png", acento: "rosa" },
+  vaso: { arquivo: "simbolo-verde.png", acento: "menta" },
+};
 
+const MARGEM = 80;
 const arquivo = (base: string, nome: string) => (base ? `${base}${nome}` : staticFile(nome));
+const marca = (base: string, nome: string) => (base ? `/marca/${nome}` : staticFile(`marca/${nome}`));
 const limitar = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
+const legendaEstilo: CSSProperties = { fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" };
 
 /** Escolhe o tamanho da fonte pelo comprimento do texto: [[até N caracteres, tamanho], ...]. */
 function tamanho(texto: string, faixas: [number, number][], menor: number) {
@@ -38,56 +69,21 @@ function useEntrada(atraso = 0) {
   return spring({ frame: frame - atraso, fps, config: { damping: 200 } });
 }
 
-export function Video({ cenas, duracao, audio, base }: VideoProps) {
+export function Video({ cenas, duracao, audio, logo, base }: VideoProps) {
   const { fps } = useVideoConfig();
   return (
-    <AbsoluteFill style={{ backgroundColor: COR.fundo, fontFamily, color: COR.texto }}>
-      <Fundo />
+    <AbsoluteFill style={{ backgroundColor: FUNDOS["azul-noite"].cor, fontFamily: ARCHIVO }}>
       {cenas.map((cena, i) => {
         const de = Math.round(cena.inicio * fps);
         const duracaoCena = Math.max(1, Math.round(cena.fim * fps) - de);
         return (
           <Sequence key={i} from={de} durationInFrames={duracaoCena} premountFor={fps}>
-            <Moldura cena={cena} duracao={duracaoCena} cor={DESTAQUES[i % DESTAQUES.length]} base={base} indice={i} />
+            <Moldura cena={cena} duracao={duracaoCena} base={base} indice={i} logo={logo} />
           </Sequence>
         );
       })}
       <BarraProgresso total={Math.max(1, Math.ceil(duracao * fps))} />
       {audio && <Audio src={arquivo(base, audio)} />}
-    </AbsoluteFill>
-  );
-}
-
-function Fundo() {
-  const frame = useCurrentFrame();
-  return (
-    <AbsoluteFill
-      style={{
-        backgroundImage:
-          "linear-gradient(rgba(255,255,255,0.035) 2px, transparent 2px), linear-gradient(90deg, rgba(255,255,255,0.035) 2px, transparent 2px)",
-        backgroundSize: "120px 120px",
-      }}
-    >
-      {Array.from({ length: 28 }, (_, i) => {
-        const x = random(`x${i}`) * LARGURA;
-        const y = random(`y${i}`) * ALTURA;
-        const deriva = Math.sin(frame / 60 + i) * 18;
-        return (
-          <div
-            key={i}
-            style={{
-              position: "absolute",
-              left: x,
-              top: y + deriva,
-              width: 8,
-              height: 8,
-              borderRadius: 8,
-              background: DESTAQUES[i % DESTAQUES.length],
-              opacity: 0.18 + random(`o${i}`) * 0.3,
-            }}
-          />
-        );
-      })}
     </AbsoluteFill>
   );
 }
@@ -101,36 +97,82 @@ function BarraProgresso({ total }: { total: number }) {
         left: 0,
         bottom: 0,
         height: 12,
-        width: (Math.min(frame / total, 1) * LARGURA),
-        background: DESTAQUES[0],
-        boxShadow: `0 0 24px ${DESTAQUES[0]}`,
+        width: Math.min(frame / total, 1) * LARGURA,
+        background: ACENTOS["amarelo-sol"],
       }}
     />
   );
 }
 
-type PropsCena = { cena: Cena; duracao: number; cor: string; base: string; indice: number };
+type PropsMoldura = { cena: Cena; duracao: number; base: string; indice: number; logo: Logo };
+type Tema = { fundo: string; ink: string; suave: string; logo: string };
+type PropsCena = PropsMoldura & {
+  tema: Tema;
+  acento: string;
+  /** Cor de bloco n-ésima a partir do acento da cena. */
+  bloco: (n: number) => string;
+  simbolo: Cena["simbolo"];
+};
 
-/** Partes comuns a toda cena: entrada/saída suave, rótulo do capítulo e legenda embaixo. */
-function Moldura(props: PropsCena) {
-  const { cena, duracao, cor } = props;
+/** Partes comuns: fundo, cortina de papel entre cenas, rótulo, logo pequeno, símbolo e frase de apoio. */
+function Moldura(props: PropsMoldura) {
+  const { cena, indice, logo, base } = props;
   const frame = useCurrentFrame();
-  const opacidade = interpolate(frame, [0, 8, duracao - 6, duracao], [0, 1, 1, 0], limitar);
-  const legenda = useEntrada(10);
+  const apoio = useEntrada(10);
+
+  // Cenas salvas antes do design system não têm estes campos.
+  const dadosFundo = FUNDOS[cena.fundo] ?? FUNDOS["azul-noite"];
+  const simbolo = simboloParaFundo(cena.simbolo ?? "nenhum", cena.fundo ?? "azul-noite");
+  // Símbolo e bloco da mesma cor se confundiriam: o acento avança uma posição.
+  let nomeAcento: Cena["acento"] = ACENTOS[cena.acento] ? cena.acento : "coral";
+  if (simbolo !== "nenhum" && SIMBOLOS[simbolo].acento === nomeAcento) {
+    nomeAcento = ORDEM_ACENTOS[(ORDEM_ACENTOS.indexOf(nomeAcento) + 1) % ORDEM_ACENTOS.length];
+  }
+  const acento = ACENTOS[nomeAcento];
+  const bloco = (n: number) => ACENTOS[ORDEM_ACENTOS[(ORDEM_ACENTOS.indexOf(nomeAcento) + n) % ORDEM_ACENTOS.length]];
+  const tema: Tema = dadosFundo.escuro
+    ? { fundo: dadosFundo.cor, ink: "#ffffff", suave: "#b19367", logo: "branca" }
+    : { fundo: dadosFundo.cor, ink: TINTA, suave: "#68663c", logo: "preta" };
+
+  const cenaProps: PropsCena = { ...props, tema, acento, bloco, simbolo };
   const corpo: Record<Cena["tipo"], ReactNode> = {
-    titulo: <Titulo {...props} />,
-    foto: <Foto {...props} />,
-    topicos: <Topicos {...props} />,
-    destaque: <Destaque {...props} />,
-    citacao: <Citacao {...props} />,
-    encerramento: <Encerramento {...props} />,
+    titulo: <Titulo {...cenaProps} />,
+    foto: <Foto {...cenaProps} />,
+    topicos: <Topicos {...cenaProps} />,
+    passos: <Passos {...cenaProps} />,
+    comparacao: <Comparacao {...cenaProps} />,
+    destaque: <Destaque {...cenaProps} />,
+    citacao: <Citacao {...cenaProps} />,
+    encerramento: <Encerramento {...cenaProps} />,
   };
+
+  const temImagem = cena.tipo === "foto" && Boolean(cena.imagem);
+  const simboloNoCanto = simbolo !== "nenhum" && cena.tipo !== "titulo" && !temImagem;
+  const cortina = indice === 0 ? 1 : interpolate(frame, [0, 13], [0, 1], { ...limitar, easing: Easing.inOut(Easing.cubic) });
+  const entradaSimbolo = useEntrada(6);
+
   return (
-    <AbsoluteFill style={{ opacity: opacidade }}>
-      {cena.rotulo && (
-        <div style={{ position: "absolute", top: 170, left: MARGEM, display: "flex", alignItems: "center", gap: 18 }}>
-          <div style={{ width: 8, height: 40, borderRadius: 4, background: cor }} />
-          <span style={{ fontSize: 34, fontWeight: 700, letterSpacing: 4, color: COR.suave }}>{cena.rotulo}</span>
+    <AbsoluteFill style={{ backgroundColor: tema.fundo, color: tema.ink, overflow: "hidden" }}>
+      {simboloNoCanto && (
+        <Img
+          src={marca(base, SIMBOLOS[simbolo].arquivo)}
+          style={{
+            position: "absolute",
+            right: -90,
+            bottom: 130,
+            width: 460,
+            height: 560,
+            objectFit: "contain",
+            transform: `translateX(${(1 - entradaSimbolo) * 400}px) rotate(${interpolate(frame, [0, props.duracao], [-4, 4], limitar)}deg)`,
+          }}
+        />
+      )}
+      {!temImagem && (
+        <div style={{ position: "absolute", top: 150, left: MARGEM, right: MARGEM, height: 76, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 40 }}>
+          <span style={{ ...legendaEstilo, fontSize: 30, lineHeight: 1.25, color: tema.suave }}>{cena.rotulo}</span>
+          {cena.tipo !== "encerramento" && (
+            <Img src={marca(base, `logo-${logo}-${tema.logo}.png`)} style={{ width: 290, flexShrink: 0 }} />
+          )}
         </div>
       )}
       {corpo[cena.tipo]}
@@ -140,33 +182,46 @@ function Moldura(props: PropsCena) {
             position: "absolute",
             top: 1420,
             left: MARGEM,
-            right: MARGEM,
-            textAlign: "center",
+            width: simboloNoCanto ? 600 : LARGURA - MARGEM * 2,
             fontSize: 44,
-            lineHeight: 1.3,
-            color: "#cfd6e4",
+            lineHeight: 1.28,
+            fontWeight: 400,
             textWrap: "balance",
-            opacity: legenda,
-            transform: `translateY(${(1 - legenda) * 30}px)`,
+            opacity: apoio,
+            transform: `translateY(${(1 - apoio) * 30}px)`,
           }}
         >
           {cena.texto}
         </div>
       )}
+      {/* Bloco de papel que atravessa a tela na troca de cena, no lugar de um fade. */}
+      {cortina < 1 && <AbsoluteFill style={{ backgroundColor: acento, transform: `translateX(${cortina * 100}%)` }} />}
     </AbsoluteFill>
   );
 }
 
-function Palavras({ texto, estilo, atraso = 0, intervalo = 3 }: { texto: string; estilo: CSSProperties; atraso?: number; intervalo?: number }) {
+/** Título em grotesco pesado; a ênfase vira um recorte colorido com a palavra em serifa itálica. */
+function Manchete({ cena, acento, estilo, atraso = 0, intervalo = 3 }: { cena: Cena; acento: string; estilo: CSSProperties; atraso?: number; intervalo?: number }) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   return (
-    <div style={{ ...estilo, textWrap: "balance" }}>
-      {texto.split(/\s+/).map((palavra, i) => {
-        const p = spring({ frame: frame - atraso - i * intervalo, fps, config: { damping: 14, mass: 0.6 } });
+    <div style={{ fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1.06, textWrap: "balance", ...estilo }}>
+      {palavrasComEnfase(cena.titulo, cena.enfase).map(({ palavra, enfase }, i) => {
+        const p = spring({ frame: frame - atraso - i * intervalo, fps, config: { damping: 200 } });
         return (
-          <span key={i} style={{ display: "inline-block", opacity: Math.min(p, 1), transform: `translateY(${(1 - p) * 40}px)` }}>
-            {palavra}&nbsp;
+          <span key={i}>
+            <span
+              style={{
+                display: "inline-block",
+                opacity: p,
+                transform: `translateY(${(1 - p) * 36}px)`,
+                ...(enfase
+                  ? { background: acento, color: TINTA, fontFamily: BODONI, fontStyle: "italic", fontWeight: 400, letterSpacing: 0, padding: "0 0.14em" }
+                  : {}),
+              }}
+            >
+              {palavra}
+            </span>{" "}
           </span>
         );
       })}
@@ -174,150 +229,131 @@ function Palavras({ texto, estilo, atraso = 0, intervalo = 3 }: { texto: string;
   );
 }
 
-function Titulo({ cena, cor }: PropsCena) {
-  const linha = useEntrada(14);
-  const sub = useEntrada(22);
+function Titulo({ cena, tema, acento, bloco, simbolo, base }: PropsCena) {
+  const a = useEntrada(4);
+  const b = useEntrada(10);
+  const c = useEntrada(16);
+  const sub = useEntrada(14);
   return (
-    <AbsoluteFill style={{ justifyContent: "center", padding: `0 ${MARGEM}px`, gap: 48 }}>
-      <Palavras
-        texto={cena.titulo}
-        estilo={{ fontSize: tamanho(cena.titulo, [[28, 112], [48, 96]], 80), fontWeight: 800, lineHeight: 1.08 }}
+    <AbsoluteFill>
+      <Manchete
+        cena={cena}
+        acento={acento}
+        estilo={{ position: "absolute", top: 290, left: MARGEM, right: MARGEM, fontSize: tamanho(cena.titulo, [[26, 128], [44, 108]], 92) }}
       />
-      <div style={{ height: 10, width: 260 * linha, borderRadius: 5, background: cor }} />
       {cena.texto && (
-        <div style={{ fontSize: 48, lineHeight: 1.3, color: COR.suave, opacity: sub, textWrap: "balance" }}>{cena.texto}</div>
+        <div
+          style={{
+            position: "absolute",
+            top: 950,
+            left: MARGEM,
+            right: MARGEM,
+            fontFamily: BODONI,
+            fontStyle: "italic",
+            fontSize: 58,
+            lineHeight: 1.2,
+            color: tema.suave,
+            textWrap: "balance",
+            opacity: sub,
+          }}
+        >
+          {cena.texto}
+        </div>
+      )}
+      {/* Um bloco dominante e dois menores, encostados, como as páginas de paleta do manual. */}
+      <div style={{ position: "absolute", left: 0, top: 1260, width: 640, height: 660, background: acento, transform: `translateY(${(1 - a) * 700}px)` }} />
+      <div style={{ position: "absolute", left: 640, top: 1260, width: 440, height: 330, background: bloco(2), transform: `translateY(${(1 - b) * 700}px)` }} />
+      <div style={{ position: "absolute", left: 640, top: 1590, width: 440, height: 330, background: bloco(4), transform: `translateY(${(1 - c) * 400}px)` }} />
+      {simbolo !== "nenhum" && (
+        <Img
+          src={marca(base, SIMBOLOS[simbolo].arquivo)}
+          style={{
+            position: "absolute",
+            left: -60,
+            top: 1200,
+            width: 690,
+            height: 780,
+            objectFit: "contain",
+            opacity: b,
+            transform: `translateY(${(1 - b) * 300}px)`,
+          }}
+        />
       )}
     </AbsoluteFill>
   );
 }
 
 function Foto(props: PropsCena) {
-  const { cena, cor, base, duracao } = props;
+  const { cena, tema, acento, base, duracao } = props;
   const frame = useCurrentFrame();
   const entrada = useEntrada(0);
-  const titulo = useEntrada(12);
-  if (!cena.imagem) return <Titulo {...props} />;
-  const zoom = interpolate(frame, [0, duracao], [1.04, 1.16], limitar);
+  if (!cena.imagem) return <Titulo {...props} simbolo={props.simbolo} />;
+  const zoom = interpolate(frame, [0, duracao], [1.02, 1.12], limitar);
   return (
     <AbsoluteFill>
-      <div
-        style={{
-          position: "absolute",
-          top: 290,
-          left: MARGEM,
-          right: MARGEM,
-          height: 860,
-          borderRadius: 40,
-          overflow: "hidden",
-          border: `4px solid ${cor}`,
-          boxShadow: `0 30px 80px rgba(0,0,0,0.5)`,
-          opacity: entrada,
-          transform: `scale(${0.92 + entrada * 0.08})`,
-        }}
-      >
-        <Img
-          src={arquivo(base, cena.imagem)}
-          style={{ width: "100%", height: "100%", objectFit: "cover", transform: `scale(${zoom})` }}
-        />
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1040, overflow: "hidden", opacity: entrada }}>
+        <Img src={arquivo(base, cena.imagem)} style={{ width: "100%", height: "100%", objectFit: "cover", transform: `scale(${zoom})` }} />
         {cena.credito && (
-          <span
-            style={{
-              position: "absolute",
-              right: 20,
-              bottom: 20,
-              padding: "8px 18px",
-              borderRadius: 30,
-              background: "rgba(0,0,0,0.6)",
-              fontSize: 24,
-              color: "#dfe4ee",
-            }}
-          >
+          <span style={{ position: "absolute", right: MARGEM, bottom: 28, padding: "8px 22px", borderRadius: 999, background: TINTA, color: "#ffffff", fontSize: 24, fontWeight: 600 }}>
             {cena.credito}
           </span>
         )}
       </div>
-      <div
-        style={{
-          position: "absolute",
-          top: 1200,
-          left: MARGEM,
-          right: MARGEM,
-          fontSize: tamanho(cena.titulo, [[30, 68], [50, 58]], 50),
-          fontWeight: 800,
-          lineHeight: 1.12,
-          textWrap: "balance",
-          opacity: titulo,
-          transform: `translateY(${(1 - titulo) * 40}px)`,
-        }}
-      >
-        {cena.titulo}
-      </div>
+      <div style={{ position: "absolute", top: 1040, left: 0, width: LARGURA * entrada, height: 24, background: acento }} />
+      <div style={{ ...legendaEstilo, position: "absolute", top: 1100, left: MARGEM, right: MARGEM, fontSize: 30, color: tema.suave }}>{cena.rotulo}</div>
+      <Manchete
+        cena={cena}
+        acento={acento}
+        atraso={6}
+        estilo={{ position: "absolute", top: 1160, left: MARGEM, right: MARGEM, fontSize: tamanho(cena.titulo, [[30, 84], [50, 72]], 62) }}
+      />
     </AbsoluteFill>
   );
 }
 
-function Topicos({ cena, cor, duracao, indice }: PropsCena) {
+/** Título do alto das cenas com lista, passos e comparação. */
+function TituloDeLista({ cena, acento }: Pick<PropsCena, "cena" | "acento">) {
+  return (
+    <Manchete
+      cena={cena}
+      acento={acento}
+      estilo={{ position: "absolute", top: 270, left: MARGEM, right: MARGEM, fontSize: tamanho(cena.titulo, [[24, 92], [44, 78]], 66) }}
+    />
+  );
+}
+
+function Topicos({ cena, acento, bloco, duracao }: PropsCena) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const titulo = useEntrada(0);
   const itens = cena.itens.slice(0, 4);
   // Os itens entram espalhados pelos primeiros 60% da cena, no ritmo da fala.
   const intervalo = Math.max(6, Math.floor((duracao * 0.6) / Math.max(itens.length, 1)));
   return (
     <AbsoluteFill>
-      <div
-        style={{
-          position: "absolute",
-          top: 300,
-          left: MARGEM,
-          right: MARGEM,
-          fontSize: tamanho(cena.titulo, [[30, 76], [50, 64]], 54),
-          fontWeight: 800,
-          lineHeight: 1.1,
-          textWrap: "balance",
-          opacity: titulo,
-        }}
-      >
-        {cena.titulo}
-      </div>
-      <div style={{ position: "absolute", top: 590, left: MARGEM, right: MARGEM, display: "flex", flexDirection: "column", gap: 34 }}>
+      <TituloDeLista cena={cena} acento={acento} />
+      <div style={{ position: "absolute", top: 590, left: 0, display: "flex", flexDirection: "column", gap: 16 }}>
         {itens.map((item, i) => {
-          const p = spring({ frame: frame - 10 - i * intervalo, fps, config: { damping: 200 } });
-          const corItem = DESTAQUES[(indice + i) % DESTAQUES.length];
+          const p = spring({ frame: frame - 8 - i * intervalo, fps, config: { damping: 200 } });
           return (
             <div
               key={i}
               style={{
+                width: 960,
+                minHeight: 160,
+                boxSizing: "border-box",
+                padding: `28px 48px 28px ${MARGEM}px`,
                 display: "flex",
                 alignItems: "center",
-                gap: 32,
-                padding: "34px 40px",
-                borderRadius: 28,
-                background: COR.painel,
-                border: `2px solid ${COR.borda}`,
-                borderLeft: `10px solid ${corItem}`,
-                opacity: p,
-                transform: `translateX(${(1 - p) * -80}px)`,
+                background: bloco(i),
+                color: TINTA,
+                fontSize: 58,
+                fontWeight: 700,
+                lineHeight: 1.1,
+                letterSpacing: "-0.01em",
+                transform: `translateX(${(1 - p) * -1000}px)`,
               }}
             >
-              <span
-                style={{
-                  flexShrink: 0,
-                  width: 72,
-                  height: 72,
-                  borderRadius: 36,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: i === 0 ? cor : corItem,
-                  color: COR.fundo,
-                  fontSize: 38,
-                  fontWeight: 800,
-                }}
-              >
-                {i + 1}
-              </span>
-              <span style={{ fontSize: 50, fontWeight: 600, lineHeight: 1.15 }}>{item}</span>
+              {item}
             </div>
           );
         })}
@@ -326,150 +362,193 @@ function Topicos({ cena, cor, duracao, indice }: PropsCena) {
   );
 }
 
-function Destaque({ cena, cor }: PropsCena) {
+function Passos({ cena, acento, bloco, duracao }: PropsCena) {
   const frame = useCurrentFrame();
-  const numero = useEntrada(4);
-  const titulo = useEntrada(16);
-  const anel = interpolate(frame, [0, 40], [0.6, 1.25], limitar);
-  const valor = cena.destaque || cena.titulo;
+  const { fps } = useVideoConfig();
+  const itens = cena.itens.slice(0, 4);
+  const intervalo = Math.max(6, Math.floor((duracao * 0.6) / Math.max(itens.length, 1)));
   return (
-    <AbsoluteFill style={{ alignItems: "center" }}>
+    <AbsoluteFill>
+      <TituloDeLista cena={cena} acento={acento} />
+      <div style={{ position: "absolute", top: 590, left: MARGEM, right: MARGEM, display: "flex", flexDirection: "column" }}>
+        {itens.map((item, i) => {
+          const p = spring({ frame: frame - 8 - i * intervalo, fps, config: { damping: 200 } });
+          return (
+            <div
+              key={i}
+              style={{
+                marginTop: i ? -14 : 0,
+                minHeight: 200,
+                boxSizing: "border-box",
+                padding: "28px 44px 62px",
+                display: "flex",
+                alignItems: "center",
+                gap: 36,
+                background: bloco(i),
+                color: TINTA,
+                // Seta para baixo, a mesma ideia das setas encadeadas do diagrama do método.
+                clipPath: i < itens.length - 1 ? "polygon(0 0, 100% 0, 100% calc(100% - 40px), 50% 100%, 0 calc(100% - 40px))" : undefined,
+                zIndex: itens.length - i,
+                opacity: p,
+                transform: `translateY(${(1 - p) * -60}px)`,
+              }}
+            >
+              <span style={{ fontSize: 96, fontWeight: 800, lineHeight: 1 }}>{i + 1}</span>
+              <span style={{ fontSize: 50, fontWeight: 700, lineHeight: 1.12 }}>{item}</span>
+            </div>
+          );
+        })}
+      </div>
+    </AbsoluteFill>
+  );
+}
+
+function Comparacao({ cena, acento, duracao }: PropsCena) {
+  const a = useEntrada(6);
+  const b = useEntrada(Math.floor(duracao * 0.35));
+  const [rotuloA = "", textoA = "", rotuloB = "", textoB = ""] = cena.itens;
+  const lado = (rotulo: string, texto: string, cor: string, top: number, deslocamento: number) => (
+    <div
+      style={{
+        position: "absolute",
+        top,
+        left: 0,
+        right: 0,
+        height: 390,
+        boxSizing: "border-box",
+        padding: `40px ${MARGEM}px`,
+        background: cor,
+        color: TINTA,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        gap: 18,
+        transform: `translateX(${deslocamento}px)`,
+      }}
+    >
+      <span style={{ ...legendaEstilo, fontSize: 32 }}>{rotulo}</span>
+      <span style={{ fontSize: tamanho(texto, [[28, 78], [50, 64]], 52), fontWeight: 800, lineHeight: 1.08, letterSpacing: "-0.015em" }}>{texto}</span>
+    </div>
+  );
+  return (
+    <AbsoluteFill>
+      <TituloDeLista cena={cena} acento={acento} />
+      {lado(rotuloA, textoA, acento === ACENTOS.areia ? ACENTOS.menta : ACENTOS.areia, 560, (1 - a) * -1080)}
+      {lado(rotuloB, textoB, acento, 950, (1 - b) * 1080)}
+    </AbsoluteFill>
+  );
+}
+
+function Destaque({ cena, acento, tema, duracao }: PropsCena) {
+  const frame = useCurrentFrame();
+  const blocoEntrada = useEntrada(0);
+  const valor = cena.destaque || cena.titulo;
+  // A contagem termina antes do meio da cena, para o número final ficar um tempo parado.
+  const progresso = interpolate(frame, [4, Math.min(45, duracao * 0.45)], [0, 1], { ...limitar, easing: Easing.out(Easing.cubic) });
+  return (
+    <AbsoluteFill>
       <div
         style={{
           position: "absolute",
-          top: 360,
-          width: 640,
-          height: 640,
-          borderRadius: 320,
-          border: `4px solid ${cor}`,
-          opacity: interpolate(frame, [0, 40], [0.5, 0.12], limitar),
-          transform: `scale(${anel})`,
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          top: 520,
-          left: MARGEM,
-          right: MARGEM,
-          textAlign: "center",
-          fontSize: Math.min(250, Math.floor(1500 / Math.max(valor.length, 3))),
-          fontWeight: 800,
-          color: cor,
-          textShadow: `0 0 60px ${cor}66`,
-          transform: `scale(${0.6 + numero * 0.4})`,
-          opacity: numero,
+          top: 280,
+          left: 0,
+          width: LARGURA * blocoEntrada,
+          height: 680,
+          background: acento,
+          overflow: "hidden",
+          display: "flex",
+          alignItems: "center",
         }}
       >
-        {valor}
-      </div>
-      {cena.destaque && (
-        <div
+        <span
           style={{
-            position: "absolute",
-            top: 1060,
-            left: MARGEM,
-            right: MARGEM,
-            textAlign: "center",
-            fontSize: tamanho(cena.titulo, [[40, 64]], 54),
-            fontWeight: 700,
-            lineHeight: 1.15,
-            textWrap: "balance",
-            opacity: titulo,
-            transform: `translateY(${(1 - titulo) * 30}px)`,
+            flexShrink: 0,
+            width: LARGURA,
+            boxSizing: "border-box",
+            padding: `0 ${MARGEM}px`,
+            color: TINTA,
+            // Valor curto ocupa a largura toda; frase longa (sem número) quebra em linhas grandes.
+            fontSize: valor.length <= 12 ? Math.min(370, Math.floor(1700 / Math.max(valor.length, 3))) : tamanho(valor, [[30, 128]], 100),
+            fontWeight: 800,
+            letterSpacing: "-0.03em",
+            lineHeight: 1.02,
           }}
         >
-          {cena.titulo}
-        </div>
+          {contagem(valor, progresso)}
+        </span>
+      </div>
+      {cena.destaque && (
+        <Manchete
+          cena={{ ...cena, enfase: "" }}
+          acento={acento}
+          atraso={12}
+          estilo={{ position: "absolute", top: 1020, left: MARGEM, right: MARGEM, color: tema.ink, fontSize: tamanho(cena.titulo, [[34, 84], [60, 68]], 58) }}
+        />
       )}
     </AbsoluteFill>
   );
 }
 
-function Citacao({ cena, cor, duracao }: PropsCena) {
-  const aspas = useEntrada(0);
-  const autor = useEntrada(Math.floor(duracao * 0.5));
+function Citacao({ cena, acento, tema, duracao }: PropsCena) {
+  const bloco = useEntrada(0);
+  const autor = useEntrada(Math.floor(duracao * 0.55));
   const palavras = cena.titulo.split(/\s+/).length;
   return (
-    <AbsoluteFill style={{ padding: `0 ${MARGEM}px` }}>
-      <div style={{ position: "absolute", top: 250, left: MARGEM, fontSize: 340, lineHeight: 1, fontWeight: 800, color: cor, opacity: aspas }}>
-        “
+    <AbsoluteFill>
+      <div style={{ position: "absolute", top: 280, left: 0, width: (MARGEM + 200) * bloco, height: 200, background: acento, overflow: "hidden" }}>
+        <span style={{ position: "absolute", left: MARGEM, top: 10, fontFamily: BODONI, fontStyle: "italic", fontSize: 300, lineHeight: 1, color: TINTA }}>“</span>
       </div>
-      <Palavras
-        texto={cena.titulo}
+      <Manchete
+        cena={{ ...cena, enfase: "" }}
+        acento={acento}
         atraso={8}
         intervalo={Math.max(1, Math.floor((duracao * 0.45) / palavras))}
         estilo={{
           position: "absolute",
-          top: 560,
+          top: 540,
           left: MARGEM,
           right: MARGEM,
-          fontSize: tamanho(cena.titulo, [[60, 70], [110, 60]], 52),
-          fontWeight: 600,
+          fontFamily: BODONI,
           fontStyle: "italic",
-          lineHeight: 1.25,
+          fontWeight: 400,
+          letterSpacing: 0,
+          lineHeight: 1.18,
+          fontSize: tamanho(cena.titulo, [[50, 100], [100, 84]], 68),
         }}
       />
       {cena.destaque && (
-        <div style={{ position: "absolute", top: 1180, left: MARGEM, right: MARGEM, fontSize: 42, color: COR.suave, opacity: autor }}>
-          — {cena.destaque}
-        </div>
+        <div style={{ ...legendaEstilo, position: "absolute", top: 1270, left: MARGEM, right: MARGEM, fontSize: 32, color: tema.suave, opacity: autor }}>{cena.destaque}</div>
       )}
     </AbsoluteFill>
   );
 }
 
-function Encerramento({ cena, cor, duracao }: PropsCena) {
+function Encerramento({ cena, acento, bloco, tema, base, logo, duracao }: PropsCena) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const selos = cena.itens.slice(0, 3);
-  const intervalo = Math.max(6, Math.floor((duracao * 0.4) / Math.max(selos.length, 1)));
-  const titulo = useEntrada(10 + selos.length * intervalo);
+  const etiquetas = cena.itens.slice(0, 3);
+  const entradaLogo = useEntrada(Math.floor(duracao * 0.3));
   return (
-    <AbsoluteFill style={{ alignItems: "center" }}>
-      <div style={{ position: "absolute", top: 380, display: "flex", flexDirection: "column", alignItems: "center", gap: 22 }}>
-        {selos.map((selo, i) => {
-          const p = spring({ frame: frame - 6 - i * intervalo, fps, config: { damping: 14, mass: 0.6 } });
-          const ultimo = i === selos.length - 1;
-          const corSelo = ultimo ? cor : DESTAQUES[(i + 1) % DESTAQUES.length];
+    <AbsoluteFill>
+      <Manchete
+        cena={cena}
+        acento={acento}
+        estilo={{ position: "absolute", top: 270, left: MARGEM, right: MARGEM, fontSize: tamanho(cena.titulo, [[30, 104], [54, 88]], 72) }}
+      />
+      <div style={{ position: "absolute", top: 730, left: MARGEM, right: MARGEM, display: "flex", flexWrap: "wrap", gap: 18 }}>
+        {etiquetas.map((etiqueta, i) => {
+          const p = spring({ frame: frame - 12 - i * 6, fps, config: { damping: 200 } });
           return (
-            <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 22, opacity: Math.min(p, 1) }}>
-              {i > 0 && <span style={{ fontSize: 56, color: COR.suave }}>{ultimo && selos.length > 2 ? "=" : "+"}</span>}
-              <span
-                style={{
-                  padding: "22px 52px",
-                  borderRadius: 60,
-                  fontSize: 56,
-                  fontWeight: 700,
-                  border: `4px solid ${corSelo}`,
-                  background: ultimo ? corSelo : `${corSelo}22`,
-                  color: ultimo ? COR.fundo : COR.texto,
-                  transform: `scale(${0.7 + Math.min(p, 1) * 0.3})`,
-                }}
-              >
-                {selo}
-              </span>
-            </div>
+            <span key={i} style={{ padding: "16px 38px", borderRadius: 999, background: bloco(i), color: TINTA, fontSize: 42, fontWeight: 700, opacity: p, transform: `translateY(${(1 - p) * 30}px)` }}>
+              {etiqueta}
+            </span>
           );
         })}
       </div>
-      <div
-        style={{
-          position: "absolute",
-          top: selos.length ? 1120 : 700,
-          left: MARGEM,
-          right: MARGEM,
-          textAlign: "center",
-          fontSize: tamanho(cena.titulo, [[40, 66]], 56),
-          fontWeight: 800,
-          lineHeight: 1.12,
-          textWrap: "balance",
-          opacity: titulo,
-          transform: `translateY(${(1 - titulo) * 30}px)`,
-        }}
-      >
-        {cena.titulo}
-      </div>
+      <Img
+        src={marca(base, `logo-${logo}-${tema.logo}.png`)}
+        style={{ position: "absolute", top: 1010, left: (LARGURA - 800) / 2, width: 800, opacity: entradaLogo, transform: `translateY(${(1 - entradaLogo) * 24}px)` }}
+      />
     </AbsoluteFill>
   );
 }

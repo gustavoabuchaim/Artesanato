@@ -1,7 +1,39 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { chaveSemana } from "./armazenamento.ts";
-import { agruparFrases, normalizarCenas } from "./cenas.ts";
+import { agruparFrases, contagem, logoDaSemana, normalizarCenas, palavrasComEnfase, simboloParaFundo } from "./cenas.ts";
+
+test("ênfase marca as palavras certas e é ignorada se não estiver no título", () => {
+  const marcadas = (titulo: string, enfase?: string) =>
+    palavrasComEnfase(titulo, enfase).flatMap((p) => (p.enfase ? [p.palavra] : []));
+  assert.deepEqual(marcadas("MEI pode dispensar nota fiscal", "nota fiscal"), ["nota", "fiscal"]);
+  assert.deepEqual(marcadas("Nota fiscal muda", "NOTA"), ["Nota"]);
+  assert.deepEqual(marcadas("MEI pode dispensar", "imposto"), []);
+  assert.deepEqual(marcadas("MEI pode dispensar", ""), []);
+  assert.deepEqual(marcadas("MEI pode dispensar"), []);
+});
+
+test("contagem anima inteiros e mantém o resto do texto", () => {
+  assert.equal(contagem("130", 0.5), "65");
+  assert.equal(contagem("17ª", 1), "17ª");
+  assert.equal(contagem("R$ 1.300", 0.5), "R$ 650");
+  assert.equal(contagem("R$ 1.300", 1), "R$ 1.300");
+  assert.equal(contagem("40%", 2), "40%");
+  assert.equal(contagem("2,5 mi", 0.5), "2,5 mi");
+  assert.equal(contagem("Metade", 0.5), "Metade");
+});
+
+test("símbolo claro demais troca em fundo claro e fica em fundo escuro", () => {
+  assert.equal(simboloParaFundo("passaro", "creme"), "folha-coral");
+  assert.equal(simboloParaFundo("vaso", "branco"), "folha-coral");
+  assert.equal(simboloParaFundo("vaso", "azul-noite"), "vaso");
+  assert.equal(simboloParaFundo("sol", "rosa-papel"), "sol");
+});
+
+test("logo varia de semana para semana", () => {
+  assert.equal(logoDaSemana("2026-S44"), "verde");
+  assert.equal(logoDaSemana("2026-S45"), "coral");
+});
 
 test("junta pedaços do whisper em frases e tira marcações", () => {
   const p = (inicio: number, texto: string) => ({ inicio, fim: inicio + 0.3, texto });

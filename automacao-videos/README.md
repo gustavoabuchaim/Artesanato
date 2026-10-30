@@ -16,10 +16,11 @@ App de uma usuária que transforma notícias de artesanato em vídeos verticais 
 |---|---|
 | Interface e API | Next.js 16 (`src/app`) |
 | Senha | `src/proxy.ts` + `src/lib/sessao.ts`, sessão assinada de até 12 h |
-| Notícias, roteiro e cenas | API do Claude (`src/lib/claude.ts`), modelo `claude-haiku-5-5` (o mais barato), com busca e leitura na web |
+| Notícias, roteiro e cenas | API do Claude (`src/lib/claude.ts`), modelo `claude-sonnet-5-5` com esforço médio, com busca e leitura na web |
 | Transcrição | whisper.cpp local via `@remotion/install-whisper-cpp` (`src/lib/midia.ts`) |
 | Fotos | foto da matéria (og:image) e, opcionalmente, Pexels (`src/lib/imagens.ts`) |
 | Vídeo | Remotion: composição em `src/remotion/`, preview no navegador com `@remotion/player`, render pelo CLI |
+| Identidade visual | design system Fernanda Sklovsky: cores, fontes e regras em `src/remotion/Video.tsx`, logos e símbolos em `public/marca/` |
 | Dados | arquivos em `data/<semana>/` (estado.json, áudio, fotos, MP4), sem banco de dados |
 
 ## Rodar localmente
@@ -36,6 +37,12 @@ npm run dev                  # http://localhost:3000
 - No **primeiro render**, o Remotion baixa o Chrome Headless Shell.
 - `npm test` roda os testes da linha do tempo das cenas e da semana ISO.
 - `npm run studio` abre o Remotion Studio com um vídeo de exemplo, para ajustar o visual das cenas.
+
+## Identidade visual
+
+Os vídeos e a tela do app seguem o design system "Fernanda Sklovsky" (https://claude.ai/artifact/YABHqRPPVZJ3D6K6H3ezS1). Na tela, os tokens ficam em `src/app/globals.css`. Nos vídeos, a identidade fica no código, não no prompt: o Claude só escolhe `fundo`, `acento` e `simbolo` entre valores permitidos, e o layout, as fontes e o contraste vêm de `src/remotion/Video.tsx`. O logo muda a cada semana (`logoDaSemana`).
+
+É uma cópia: se o design system mudar, atualize os tokens em `globals.css` e `Video.tsx` e as imagens em `public/marca/`. As fontes são as substitutas indicadas por ele (Archivo e Libre Bodoni).
 
 ## Produção (VPS com Docker e Caddy)
 
@@ -59,7 +66,7 @@ Faça backup do volume `artesanato_data`: ele guarda todo o histórico.
 
 ## Custos e licenças
 
-- **Claude:** cerca de US$ 0,07 por semana, medido em 26/10/2026. A busca custa cerca de US$ 0,06, quase tudo das 5 buscas na web (US$ 0,01 cada); o roteiro, US$ 0,003; as cenas, US$ 0,006. O log do servidor mostra os tokens e as buscas de cada chamada (`[claude] ...`).
+- **Claude:** cerca de US$ 0,35 por semana (Sonnet 5.5, esforço médio). Medido em 30/10/2026: roteiro, US$ 0,05; cenas, US$ 0,03. A busca de notícias é estimativa, cerca de US$ 0,26, com 5 buscas na web a US$ 0,01 cada. O log do servidor mostra os tokens e as buscas de cada chamada (`[claude] ...`).
 - **Whisper e Pexels:** gratuitos.
 - **Remotion:** a licença é gratuita para pessoas físicas e empresas com até 3 pessoas. Ela deve ficar no nome do negócio da cliente. Confira os termos em https://www.remotion.dev/docs/license.
 - **Fotos das matérias:** os direitos são do veículo. O vídeo mostra o crédito, mas crédito não é autorização. Antes de publicar, confirme o uso ou troque pela foto da própria artesã (botão "Trocar foto").
